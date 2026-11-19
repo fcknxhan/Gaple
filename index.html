@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asisten Gaple - Simpel & Cepat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b141a;
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .tile-btn {
+            transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease;
+            user-select: none;
+        }
+        .tile-btn:active {
+            transform: scale(0.94);
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-8">
+
+    <!-- Header Ringkas -->
+    <header class="sticky top-0 z-30 bg-[#0f1c24]/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+        <div class="max-w-3xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg bg-emerald-500 text-slate-950 font-extrabold flex items-center justify-center text-lg shadow">🁣</span>
+                <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white">Asisten Gaple</h1>
+            </div>
+            <button onclick="resetRound()" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xs sm:text-sm font-bold shadow transition">
+                Reset Ronde
+            </button>
+        </div>
+    </header>
+
+    <!-- Notifikasi Singkat -->
+    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-800 border border-emerald-500/50 text-emerald-200 text-xs font-semibold shadow-xl opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+    <main class="max-w-3xl mx-auto px-3 sm:px-4 pt-4 space-y-4">
+
+        <!-- 1. KARTU SAYA (BAR ATAS) -->
+        <section class="bg-[#111f27] border border-slate-800 rounded-2xl p-3.5 shadow-lg">
+            <div class="flex items-center justify-between mb-2.5">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">1. Kartu Saya (<span id="hand-count">0</span>/7)</span>
+                <span id="hand-points" class="text-xs font-semibold text-slate-400">0 Poin</span>
+            </div>
+            <div id="my-hand-bar" class="flex flex-wrap gap-2 min-h-[54px] items-center bg-[#0a1318] p-2 rounded-xl border border-slate-800/80">
+                <span class="text-xs text-slate-500 px-1">Pilih maksimal 7 kartu kamu di bawah...</span>
+            </div>
+        </section>
+
+        <!-- 2. REKOMENDASI JALAN (LANGSUNG MUNCUL REAL-TIME) -->
+        <section id="recommendation-box" class="bg-gradient-to-br from-emerald-950/80 to-[#111f27] border border-emerald-500/40 rounded-2xl p-3.5 sm:p-4 shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <span>⚡</span> Rekomendasi Jalan
+                </span>
+                <span id="move-status" class="text-[11px] font-semibold text-emerald-300 bg-emerald-900/50 px-2 py-0.5 rounded-md">Menunggu Kartu</span>
+            </div>
+            <div id="recommendation-content">
+                <p class="text-xs sm:text-sm text-slate-300">Masukkan kartu kamu & angka ujung meja untuk melihat kartu terbaik yang harus diturunkan.</p>
+            </div>
+        </section>
+
+        <!-- 3. STATUS MEJA & LAWAN LEWAT -->
+        <section class="bg-[#111f27] border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3.5">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-sky-400">2. Ujung Meja Terbuka</span>
+                <button onclick="clearEnds()" class="text-xs text-slate-400 hover:text-amber-300 underline">Kosongkan Meja</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Ujung Kiri -->
+                <div class="bg-[#0a1318] p-2.5 rounded-xl border border-slate-800/80">
+                    <span class="block text-[11px] font-bold text-emerald-400 mb-1.5">Ujung Kiri</span>
+                    <div id="left-ends" class="grid grid-cols-7 gap-1"></div>
+                </div>
+                <!-- Ujung Kanan -->
+                <div class="bg-[#0a1318] p-2.5 rounded-xl border border-slate-800/80">
+                    <span class="block text-[11px] font-bold text-amber-400 mb-1.5">Ujung Kanan</span>
+                    <div id="right-ends" class="grid grid-cols-7 gap-1"></div>
+                </div>
+            </div>
+
+            <!-- Lawan Lewat / Kosong -->
+            <div class="bg-[#0a1318] p-2.5 rounded-xl border border-slate-800/80">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[11px] font-bold text-rose-400">Angka Lawan Lewat / Kosong (Serang Angka Ini)</span>
+                </div>
+                <div id="opponent-weak-row" class="grid grid-cols-7 gap-1.5"></div>
+            </div>
+        </section>
+
+        <!-- 4. GRID 28 KARTU (PILIH KARTU SAYA / TANDAI SUDAH KELUAR) -->
+        <section class="bg-[#111f27] border border-slate-800 rounded-2xl p-3.5 shadow-lg">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-300">3. Daftar 28 Kartu (<span id="outside-count">28</span> Sisa)</span>
+                
+                <!-- Switch Mode 1-Tap -->
+                <div class="inline-flex rounded-xl bg-[#0a1318] p-1 border border-slate-800">
+                    <button id="tab-hand" onclick="setMode('HAND')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white transition">
+                        + Kartu Saya
+                    </button>
+                    <button id="tab-played" onclick="setMode('PLAYED')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">
+                        ✓ Sudah Keluar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid 28 Kartu Kompak -->
+            <div id="all-tiles-grid" class="grid grid-cols-4 sm:grid-cols-7 gap-2"></div>
+        </section>
+
+    </main>
+
+    <!-- Modal Pilih Sisi (Jika kartu cocok di Kiri & Kanan) -->
+    <div id="side-modal" class="fixed inset-0 z-50 bg-black/75 hidden items-center justify-center p-4">
+        <div class="bg-[#13232c] border border-slate-700 rounded-2xl max-w-xs w-full p-4 shadow-2xl space-y-3">
+            <h3 class="text-sm font-extrabold text-white">Taruh di Ujung Mana?</h3>
+            <p id="side-modal-text" class="text-xs text-slate-300"></p>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btn-side-left" class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"></button>
+                <button id="btn-side-right" class="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"></button>
+            </div>
+            <button onclick="closeSideModal()" class="w-full py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold">Batal</button>
+        </div>
+    </div>
+
+    <script>
+        // Generate 28 Kartu Domino
+        const TILES = [];
+        for (let i = 0; i <= 6; i++) {
+            for (let j = i; j <= 6; j++) {
+                TILES.push({
+                    id: `${i}-${j}`,
+                    a: i,
+                    b: j,
+                    isDouble: i === j,
+                    pips: i + j
+                });
+            }
+        }
+
+        // State Sederhana
+        let state = {
+            hand: [],          // ID kartu di tangan (maks 7)
+            played: [],        // ID kartu sudah keluar di meja
+            leftEnd: null,     // Angka ujung kiri (0-6 atau null)
+            rightEnd: null,    // Angka ujung kanan (0-6 atau null)
+            weakNums: [],      // Angka di mana lawan lewat/kosong
+            mode: 'HAND'       // 'HAND' | 'PLAYED'
+        };
+
+        let toastTimer = null;
+        function toast(msg) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.remove('opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.add('opacity-0'), 2000);
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            const tabHand = document.getElementById('tab-hand');
+            const tabPlayed = document.getElementById('tab-played');
+            if (mode === 'HAND') {
+                tabHand.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white transition';
+                tabPlayed.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+            } else {
+                tabPlayed.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 transition';
+                tabHand.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+            }
+        }
+
+        function onGridTileClick(id) {
+            const tile = TILES.find(t => t.id === id);
+            if (!tile) return;
+
+            if (state.mode === 'HAND') {
+                if (state.played.includes(id)) {
+                    state.played = state.played.filter(x => x !== id);
+                }
+                if (state.hand.includes(id)) {
+                    state.hand = state.hand.filter(x => x !== id);
+                } else {
+                    if (state.hand.length >= 7) {
+                        toast('Maksimal 7 kartu di tangan!');
+                        return;
+                    }
+                    state.hand.push(id);
+                }
+            } else {
+                // Mode Sudah Keluar
+                if (state.hand.includes(id)) {
+                    playCard(id);
+                    return;
+                }
+                if (state.played.includes(id)) {
+                    state.played = state.played.filter(x => x !== id);
+                } else {
+                    applyPlayedCard(tile);
+                }
+            }
+            render();
+        }
+
+        function applyPlayedCard(tile, forcedSide = null) {
+            if (!state.played.includes(tile.id)) state.played.push(tile.id);
+            state.hand = state.hand.filter(x => x !== tile.id);
+
+            const L = state.leftEnd;
+            const R = state.rightEnd;
+
+            if (L === null && R === null) {
+                state.leftEnd = tile.a;
+                state.rightEnd = tile.b;
+                toast(`Meja dibuka [${tile.a}|${tile.b}]`);
+            } else {
+                const matchL = tile.a === L || tile.b === L;
+                const matchR = tile.a === R || tile.b === R;
+
+                if (forcedSide === 'LEFT' || (matchL && !matchR)) {
+                    state.leftEnd = tile.a === L ? tile.b : tile.a;
+                    toast(`Kiri jadi ${state.leftEnd}`);
+                } else if (forcedSide === 'RIGHT' || (matchR && !matchL)) {
+                    state.rightEnd = tile.a === R ? tile.b : tile.a;
+                    toast(`Kanan jadi ${state.rightEnd}`);
+                } else if (matchL && matchR) {
+                    state.leftEnd = tile.a === L ? tile.b : tile.a;
+                    toast(`Kiri jadi ${state.leftEnd}`);
+                }
+            }
+        }
+
+        function playCard(id, forcedSide = null) {
+            const tile = TILES.find(t => t.id === id);
+            if (!tile) return;
+
+            const L = state.leftEnd;
+            const R = state.rightEnd;
+
+            if (L === null && R === null) {
+                applyPlayedCard(tile);
+                render();
+                return;
+            }
+
+            const matchL = tile.a === L || tile.b === L;
+            const matchR = tile.a === R || tile.b === R;
+
+            if (!matchL && !matchR) {
+                toast(`Kartu [${tile.a}|${tile.b}] tidak cocok ujung ${L} atau ${R}`);
+                return;
+            }
+
+            if (forcedSide) {
+                applyPlayedCard(tile, forcedSide);
+                render();
+                return;
+            }
+
+            if (matchL && matchR && L !== R) {
+                const newL = tile.a === L ? tile.b : tile.a;
+                const newR = tile.a === R ? tile.b : tile.a;
+                document.getElementById('side-modal-text').textContent = `Kartu [${tile.a}|${tile.b}] cocok di kedua ujung:`;
+                const btnL = document.getElementById('btn-side-left');
+                const btnR = document.getElementById('btn-side-right');
+                btnL.textContent = `Kiri (${L} → ${newL})`;
+                btnR.textContent = `Kanan (${R} → ${newR})`;
+                btnL.onclick = () => { applyPlayedCard(tile, 'LEFT'); closeSideModal(); render(); };
+                btnR.onclick = () => { applyPlayedCard(tile, 'RIGHT'); closeSideModal(); render(); };
+                document.getElementById('side-modal').classList.remove('hidden');
+                document.getElementById('side-modal').classList.add('flex');
+                return;
+            }
+
+            applyPlayedCard(tile);
+            render();
+        }
+
+        function closeSideModal() {
+            document.getElementById('side-modal').classList.add('hidden');
+            document.getElementById('side-modal').classList.remove('flex');
+        }
+
+        function setEnd(side, num) {
+            if (side === 'LEFT') {
+                state.leftEnd = state.leftEnd === num ? null : num;
+                if (state.leftEnd !== null && state.rightEnd === null) state.rightEnd = num;
+            } else {
+                state.rightEnd = state.rightEnd === num ? null : num;
+                if (state.rightEnd !== null && state.leftEnd === null) state.leftEnd = num;
+            }
+            render();
+        }
+
+        function clearEnds() {
+            state.leftEnd = null;
+            state.rightEnd = null;
+            toast('Meja dikosongkan');
+            render();
+        }
+
+        function toggleWeakNum(num) {
+            if (state.weakNums.includes(num)) {
+                state.weakNums = state.weakNums.filter(n => n !== num);
+            } else {
+                state.weakNums.push(num);
+            }
+            render();
+        }
+
+        function resetRound() {
+            state = {
+                hand: [],
+                played: [],
+                leftEnd: null,
+                rightEnd: null,
+                weakNums: [],
+                mode: 'HAND'
+            };
+            setMode('HAND');
+            toast('Ronde baru di-reset');
+            render();
+        }
+
+        // Mesin Analisis Rekomendasi Real-time
+        function getRecommendations() {
+            const handTiles = state.hand.map(id => TILES.find(t => t.id === id)).filter(Boolean);
+            if (handTiles.length === 0) return [];
+
+            const L = state.leftEnd;
+            const R = state.rightEnd;
+            const isOpen = L === null && R === null;
+
+            // Hitung pegangan tiap angka di tangan
+            const myCounts = [0, 0, 0, 0, 0, 0, 0];
+            handTiles.forEach(t => {
+                myCounts[t.a]++;
+                if (!t.isDouble) myCounts[t.b]++;
+            });
+
+            // Hitung sisa di luar
+            const outsideCounts = [0, 0, 0, 0, 0, 0, 0];
+            TILES.forEach(t => {
+                if (!state.played.includes(t.id) && !state.hand.includes(t.id)) {
+                    outsideCounts[t.a]++;
+                    if (!t.isDouble) outsideCounts[t.b]++;
+                }
+            });
+
+            const moves = [];
+            handTiles.forEach(tile => {
+                if (isOpen) {
+                    moves.push({ tile, side: 'OPEN', ends: [tile.a, tile.b] });
+                } else {
+                    const matchL = tile.a === L || tile.b === L;
+                    const matchR = tile.a === R || tile.b === R;
+                    if (matchL) {
+                        const next = tile.a === L ? tile.b : tile.a;
+                        moves.push({ tile, side: 'LEFT', ends: [next, R], newNum: next });
+                    }
+                    if (matchR && L !== R) {
+                        const next = tile.a === R ? tile.b : tile.a;
+                        moves.push({ tile, side: 'RIGHT', ends: [L, next], newNum: next });
+                    }
+                }
+            });
+
+            return moves.map(m => {
+                const { tile, ends } = m;
+                let score = 50;
+                let reason = '';
+
+                const hitWeak = ends.find(e => state.weakNums.includes(e));
+                let bestOwnSuit = null;
+                let bestOwnCount = 0;
+
+                ends.forEach(e => {
+                    const rem = myCounts[e] - ((tile.a === e || tile.b === e) ? 1 : 0);
+                    if (rem >= 2 && rem > bestOwnCount) {
+                        bestOwnCount = rem;
+                        bestOwnSuit = e;
+                    }
+                });
+
+                if (hitWeak !== undefined) {
+                    score += 35;
+                    reason = `Serang angka ${hitWeak} yang lawan lewat/kosong.`;
+                } else if (tile.isDouble) {
+                    score += 30 + tile.pips;
+                    reason = myCounts[tile.a] === 1
+                        ? `Segera buang balak [${tile.a}|${tile.b}] sebelum terkunci.`
+                        : `Buang balak besar (${tile.pips} poin) lebih awal.`;
+                } else if (bestOwnSuit !== null) {
+                    score += 22 + (bestOwnCount * 5);
+                    reason = `Pancing angka ${bestOwnSuit} yang kamu pegang banyak (${bestOwnCount} kartu sisa, ${outsideCounts[bestOwnSuit]} di luar).`;
+                } else if (tile.pips >= 9) {
+                    score += 15 + tile.pips;
+                    reason = `Kurangi beban poin besar (${tile.pips} mata) di tangan.`;
+                } else {
+                    score += tile.pips;
+                    reason = `Langkah aman membuka ujung ${ends[0]} & ${ends[1]}.`;
+                }
+
+                return { ...m, score, reason };
+            }).sort((a, b) => b.score - a.score);
+        }
+
+        function render() {
+            // 1. Render Kartu Saya
+            const handBar = document.getElementById('my-hand-bar');
+            const handTiles = state.hand.map(id => TILES.find(t => t.id === id)).filter(Boolean);
+            document.getElementById('hand-count').textContent = handTiles.length;
+            document.getElementById('hand-points').textContent = `${handTiles.reduce((s, t) => s + t.pips, 0)} Poin`;
+
+            const recs = getRecommendations();
+            const bestId = recs.length > 0 ? recs[0].tile.id : null;
+
+            if (handTiles.length === 0) {
+                handBar.innerHTML = `<span class="text-xs text-slate-500 px-1">Pilih maksimal 7 kartu kamu di daftar bawah...</span>`;
+            } else {
+                handBar.innerHTML = handTiles.map(t => {
+                    const isBest = t.id === bestId;
+                    return `
+                        <button onclick="playCard('${t.id}')"
+                            class="tile-btn px-3 py-2 rounded-xl font-extrabold text-sm border flex items-center gap-1.5 shadow ${
+                                isBest
+                                    ? 'bg-emerald-500 text-slate-950 border-amber-300 ring-2 ring-amber-400'
+                                    : 'bg-slate-100 text-slate-900 border-slate-300 hover:border-emerald-400'
+                            }">
+                            <span>${t.a}</span>
+                            <span class="text-slate-400 font-normal">|</span>
+                            <span>${t.b}</span>
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            // 2. Render Rekomendasi Jalan
+            const recContent = document.getElementById('recommendation-content');
+            const moveStatus = document.getElementById('move-status');
+
+            if (handTiles.length === 0) {
+                moveStatus.textContent = 'Menunggu Kartu';
+                moveStatus.className = 'text-[11px] font-semibold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md';
+                recContent.innerHTML = `<p class="text-xs sm:text-sm text-slate-300">Pilih kartu kamu terlebih dahulu untuk melihat kartu terbaik yang harus jalan.</p>`;
+            } else if (recs.length === 0) {
+                moveStatus.textContent = 'LEWAT / PASS';
+                moveStatus.className = 'text-[11px] font-bold text-rose-200 bg-rose-900/80 px-2 py-0.5 rounded-md';
+                recContent.innerHTML = `
+                    <div class="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-xs sm:text-sm text-rose-200 font-medium">
+                        Tidak ada kartu yang cocok dengan ujung <strong>${state.leftEnd}</strong> atau <strong>${state.rightEnd}</strong>. Kamu harus <strong>Lewat</strong>.
+                    </div>
+                `;
+            } else {
+                moveStatus.textContent = `${recs.length} Kartu Bisa Jalan`;
+                moveStatus.className = 'text-[11px] font-bold text-emerald-300 bg-emerald-900/70 px-2 py-0.5 rounded-md';
+
+                const top = recs[0];
+                const sideLabel = top.side === 'OPEN'
+                    ? 'Buka Meja'
+                    : top.side === 'LEFT'
+                    ? `Ujung Kiri (${state.leftEnd} → ${top.newNum})`
+                    : `Ujung Kanan (${state.rightEnd} → ${top.newNum})`;
+
+                const playArg = top.side === 'OPEN' ? `'${top.tile.id}'` : `'${top.tile.id}', '${top.side}'`;
+
+                const altHTML = recs.slice(1, 3).map((alt, idx) => {
+                    const altSide = alt.side === 'OPEN' ? 'Buka Meja' : alt.side === 'LEFT' ? `Kiri → ${alt.newNum}` : `Kanan → ${alt.newNum}`;
+                    return `
+                        <div class="flex items-center justify-between gap-2 bg-[#0a1318]/90 px-3 py-2 rounded-xl border border-slate-800 text-xs">
+                            <div class="truncate">
+                                <span class="font-bold text-slate-300 mr-1.5">#${idx + 2} [${alt.tile.a}|${alt.tile.b}]</span>
+                                <span class="text-amber-300/90 font-semibold mr-1.5">(${altSide})</span>
+                                <span class="text-slate-400">${alt.reason}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                recContent.innerHTML = `
+                    <div class="bg-emerald-900/40 border border-emerald-400/60 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-extrabold text-sm shadow">
+                                    KARTU TERBAIK: [${top.tile.a} | ${top.tile.b}]
+                                </span>
+                                <span class="text-xs font-bold text-emerald-300">${sideLabel}</span>
+                            </div>
+                            <p class="text-xs sm:text-sm text-white font-medium pt-0.5">${top.reason}</p>
+                        </div>
+                        <button onclick="playCard(${playArg})"
+                            class="shrink-0 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-extrabold text-xs sm:text-sm shadow-lg transition">
+                            Mainkan Kartu Ini
+                        </button>
+                    </div>
+                    ${altHTML ? `<div class="mt-2.5 space-y-1.5">${altHTML}</div>` : ''}
+                `;
+            }
+
+            // 3. Render Ujung Meja & Lawan Lewat
+            let leftHTML = '', rightHTML = '', weakHTML = '';
+            for (let n = 0; n <= 6; n++) {
+                const activeL = state.leftEnd === n;
+                const activeR = state.rightEnd === n;
+                const activeW = state.weakNums.includes(n);
+
+                leftHTML += `
+                    <button onclick="setEnd('LEFT', ${n})"
+                        class="h-9 rounded-lg font-extrabold text-xs sm:text-sm transition ${
+                            activeL ? 'bg-emerald-500 text-slate-950 shadow' : 'bg-[#13222b] text-slate-300 hover:bg-slate-700'
+                        }">${n}</button>
+                `;
+                rightHTML += `
+                    <button onclick="setEnd('RIGHT', ${n})"
+                        class="h-9 rounded-lg font-extrabold text-xs sm:text-sm transition ${
+                            activeR ? 'bg-amber-400 text-slate-950 shadow' : 'bg-[#13222b] text-slate-300 hover:bg-slate-700'
+                        }">${n}</button>
+                `;
+                weakHTML += `
+                    <button onclick="toggleWeakNum(${n})"
+                        class="h-9 rounded-lg font-extrabold text-xs sm:text-sm transition ${
+                            activeW ? 'bg-rose-600 text-white ring-1 ring-rose-300 shadow' : 'bg-[#13222b] text-slate-400 hover:bg-slate-700'
+                        }">${n}</button>
+                `;
+            }
+            document.getElementById('left-ends').innerHTML = leftHTML;
+            document.getElementById('right-ends').innerHTML = rightHTML;
+            document.getElementById('opponent-weak-row').innerHTML = weakHTML;
+
+            // 4. Render Grid 28 Kartu
+            const outsideCount = 28 - state.hand.length - state.played.length;
+            document.getElementById('outside-count').textContent = outsideCount;
+
+            document.getElementById('all-tiles-grid').innerHTML = TILES.map(t => {
+                const inHand = state.hand.includes(t.id);
+                const isPlayed = state.played.includes(t.id);
+
+                let btnClass = 'bg-slate-100 text-slate-900 border-slate-300 hover:border-emerald-400';
+                let tag = '';
+
+                if (inHand) {
+                    btnClass = 'bg-emerald-600 text-white border-emerald-300 ring-2 ring-emerald-400/60';
+                    tag = '<span class="block text-[9px] font-bold uppercase text-emerald-100 leading-none mt-0.5">Saya</span>';
+                } else if (isPlayed) {
+                    btnClass = 'bg-[#0a1318] text-slate-600 border-slate-800/80 line-through opacity-50';
+                    tag = '<span class="block text-[9px] font-semibold uppercase text-slate-600 leading-none mt-0.5">Keluar</span>';
+                }
+
+                return `
+                    <button onclick="onGridTileClick('${t.id}')"
+                        class="tile-btn py-2 px-1 rounded-xl border font-extrabold text-sm flex flex-col items-center justify-center ${btnClass}">
+                        <div class="flex items-center gap-1">
+                            <span>${t.a}</span>
+                            <span class="opacity-40 font-normal">|</span>
+                            <span>${t.b}</span>
+                        </div>
+                        ${tag}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        window.onload = render;
+    </script>
+</body>
+</html>
